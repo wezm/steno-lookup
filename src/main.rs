@@ -71,10 +71,11 @@ fn run(opt: &Opt) -> Result<(), Error> {
     // Need to load each of the dicts
     let dictionaries = dictionary_paths
         .iter()
+        .inspect(|path| eprintln!("Loading {}", path.to_string_lossy()))
         .map(|path| Dictionary::load(path))
         .collect::<Result<Vec<_>, Error>>();
 
-    dbg!(&dictionaries);
+    // dbg!(&dictionaries);
 
     Ok(())
 }
