@@ -7,10 +7,10 @@ use serde::Deserialize;
 use crate::error::Error;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
-struct Stroke(String);
+pub struct Stroke(String);
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
-struct Translation(String);
+pub struct Translation(String);
 
 #[derive(Debug, Deserialize)]
 pub struct Dictionary(HashMap<Stroke, Translation>);
@@ -37,6 +37,12 @@ impl Dictionary {
         );
 
         InvertedDictionary(inverse)
+    }
+}
+
+impl InvertedDictionary {
+    pub fn get(&self, translation: String) -> Option<&Vec<Stroke>> {
+        self.0.get(&Translation(translation))
     }
 }
 
