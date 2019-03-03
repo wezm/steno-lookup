@@ -2,7 +2,11 @@
 
 Tool to look up the stroke for a word.
 
-[![builds.sr.ht status](https://builds.sr.ht/~wezm/steno-lookup.svg)](https://builds.sr.ht/~wezm/steno-lookup?)
+Build Status:
+
+* Debian: [![builds.sr.ht Debian status](https://builds.sr.ht/~wezm/steno-lookup/debian.yml.svg)](https://builds.sr.ht/~wezm/steno-lookup/debian.yml?)
+* FreeBSD: [![builds.sr.ht FreeBSD status](https://builds.sr.ht/~wezm/steno-lookup/freebsd.yml.svg)](https://builds.sr.ht/~wezm/steno-lookup/freebsd.yml?)
+
 [Issue Tracker](https://todo.sr.ht/~wezm/steno-lookup)
 
 <img src="https://git.sr.ht/%7Ewezm/steno-lookup/blob/master/screenshot.png" alt="Screenshot of steno-lookup in a terminal window" width="466" />
