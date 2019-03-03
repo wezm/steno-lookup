@@ -4,11 +4,19 @@ use std::io;
 pub enum Error {
     Json(serde_json::Error),
     Io(io::Error),
+    Ini(ini::ini::Error),
+    SectionMissing,
 }
 
 impl From<serde_json::Error> for Error {
     fn from(error: serde_json::Error) -> Self {
         Error::Json(error)
+    }
+}
+
+impl From<ini::ini::Error> for Error {
+    fn from(error: ini::ini::Error) -> Self {
+        Error::Ini(error)
     }
 }
 
