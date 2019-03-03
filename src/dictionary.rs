@@ -1,12 +1,13 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::fs::File;
 use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Stroke(String);
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
@@ -17,6 +18,12 @@ pub struct Dictionary(HashMap<Stroke, Translation>);
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InvertedDictionary(HashMap<Translation, Vec<Stroke>>);
+
+impl fmt::Display for Stroke {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 impl Dictionary {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {

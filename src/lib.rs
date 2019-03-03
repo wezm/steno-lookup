@@ -1,3 +1,4 @@
+pub mod alfred;
 mod dictionary;
 mod error;
 pub mod plover_config;

@@ -7,6 +7,7 @@ use rayon::prelude::*;
 use structopt::StructOpt;
 use url::Url;
 
+use steno_lookup::alfred::results_to_alfred;
 use steno_lookup::{Dictionary, Error, InvertedDictionary, Stroke};
 
 const ADDR: &str = "127.0.0.1:25040";
@@ -119,8 +120,22 @@ fn handle_lookup(dictionaries: &[InvertedDictionary], url: &Url) -> tiny_http::R
     // Get the search term
     if let Some((_k, search_term)) = url.query_pairs().find(|(k, _v)| k == "q") {
         println!("Lookup: '{}'", search_term);
-        let output = format!("{:?}", lookup(dictionaries, &search_term));
-        tiny_http::Response::from_string(output).boxed()
+        let results = results_to_alfred(&lookup(dictionaries, &search_term));
+
+        let json = serde_json::to_string_pretty(&results).expect("JSON error"); // FIXME expect
+        let json_len = json.len();
+        tiny_http::Response::new(
+            tiny_http::StatusCode(200),
+            vec![tiny_http::Header::from_bytes(
+                &b"Content-Type"[..],
+                &b"application/json; charset=UTF-8"[..],
+            )
+            .unwrap()],
+            std::io::Cursor::new(json),
+            Some(json_len),
+            None,
+        )
+        .boxed()
     } else {
         tiny_http::Response::from_string("Bad Request".to_string()).boxed()
     }
