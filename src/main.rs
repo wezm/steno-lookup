@@ -1,10 +1,16 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::thread;
 
 use directories::{ProjectDirs, UserDirs};
-use structopt::StructOpt;
 use rayon::prelude::*;
+use structopt::StructOpt;
+use url::Url;
 
-use steno_lookup::{Dictionary, Error};
+use steno_lookup::{Dictionary, Error, InvertedDictionary, Stroke};
+
+const ADDR: &str = "127.0.0.1:25040";
+const SERVER_THREADS: usize = 2;
 
 #[derive(Debug)]
 enum OutputFormat {
@@ -38,15 +44,6 @@ struct Opt {
     /// the command line.
     #[structopt(short = "d", long = "dict", parse(from_os_str), number_of_values = 1)]
     dictionaries: Vec<PathBuf>,
-
-    /// The format in which results are printed
-    ///
-    /// `text` is the default.
-    #[structopt(long, short, raw(possible_values = "&[\"text\", \"json\", \"alfred\"]"))]
-    format: Option<String>,
-
-    /// Word to look up
-    search_term: String,
 }
 
 fn main() {
@@ -66,19 +63,79 @@ fn main() {
 }
 
 fn run(opt: &Opt) -> Result<(), Error> {
-    // Build the list of dictionaries to load
-    let dictionary_paths = dictionary_list(&opt)?;
+    // Need to load each of the dicts, then transform them into a HashMap that maps word to strokes
+    let dictionaries = Arc::new(
+        dictionary_list(&opt)?
+            .par_iter()
+            .inspect(|path| eprintln!("Loading {}", path.to_string_lossy()))
+            .map(|path| Dictionary::load(path).map(Dictionary::invert))
+            .collect::<Result<Vec<_>, Error>>()?,
+    );
 
-    // Need to load each of the dicts
-    let dictionaries = dictionary_paths
-        .par_iter()
-        .inspect(|path| eprintln!("Loading {}", path.to_string_lossy()))
-        .map(|path| Dictionary::load(path))
-        .collect::<Result<Vec<_>, Error>>();
+    let server = Arc::new(tiny_http::Server::http(ADDR).unwrap());
+    println!("Now listening on port 25040");
 
-    // dbg!(&dictionaries);
+    let mut handles = Vec::new();
+
+    for _ in 0..SERVER_THREADS {
+        let server = server.clone();
+        let dictionaries = dictionaries.clone();
+
+        handles.push(thread::spawn(move || {
+            let base_url = Url::parse(&format!("https://{}", ADDR)).unwrap();
+            for req in server.incoming_requests() {
+                let url = base_url.join(req.url()).unwrap(); // Can this fail?
+                println!("{} {}", req.method(), url);
+
+                let response = {
+                    use tiny_http::Method::*;
+
+                    match (req.method(), url.path()) {
+                        (Get, "/") => {
+                            tiny_http::Response::from_string("steno-lookup".to_string()).boxed()
+                        }
+                        (Get, "/lookup") => handle_lookup(&dictionaries, &url),
+                        _ => handle_not_found(),
+                    }
+                };
+
+                let _ = req.respond(response);
+            }
+        }));
+    }
+
+    for h in handles {
+        h.join().unwrap();
+    }
 
     Ok(())
+}
+
+fn handle_not_found() -> tiny_http::ResponseBox {
+    tiny_http::Response::from_string("Not Found".to_string()).boxed()
+}
+
+fn handle_lookup(dictionaries: &[InvertedDictionary], url: &Url) -> tiny_http::ResponseBox {
+    // Get the search term
+    if let Some((_k, search_term)) = url.query_pairs().find(|(k, _v)| k == "q") {
+        println!("Lookup: '{}'", search_term);
+        let output = format!("{:?}", lookup(dictionaries, &search_term));
+        tiny_http::Response::from_string(output).boxed()
+    } else {
+        tiny_http::Response::from_string("Bad Request".to_string()).boxed()
+    }
+}
+
+// TODO: Move this out of main
+fn lookup<'a>(dictionaries: &'a [InvertedDictionary], search_term: &str) -> Vec<&'a Stroke> {
+    dictionaries.iter().fold(vec![], |mut results, dict| {
+        // FIXME: Deal with argument to `get` (should be &str)
+        if let Some(strokes) = dict.get(search_term.to_owned()) {
+            results.extend(strokes.iter());
+        }
+
+        results
+    })
 }
 
 fn dictionary_list(opt: &Opt) -> Result<Vec<PathBuf>, Error> {
