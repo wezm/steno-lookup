@@ -1,4 +1,5 @@
-image: alpine/latest
+# Use edge because latest on sr.ht is currently 3.8, even though 3.9.1 is actually latest
+image: alpine/edge
 packages:
   - rust
 sources:
