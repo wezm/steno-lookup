@@ -6,6 +6,8 @@ pub enum Error {
     Io(io::Error),
     Ini(ini::ini::Error),
     SectionMissing,
+    ConfigNotFound,
+    HomeNotFound,
 }
 
 impl From<serde_json::Error> for Error {
