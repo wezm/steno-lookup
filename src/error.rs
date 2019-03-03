@@ -1,12 +1,13 @@
 use std::io;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum Error {
     Json(serde_json::Error),
     Io(io::Error),
-    Ini(ini::ini::Error),
+    Ini(ini::ini::ParseError),
     SectionMissing,
-    ConfigNotFound,
+    FileNotFound(PathBuf),
     HomeNotFound,
 }
 
@@ -16,8 +17,8 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<ini::ini::Error> for Error {
-    fn from(error: ini::ini::Error) -> Self {
+impl From<ini::ini::ParseError> for Error {
+    fn from(error: ini::ini::ParseError) -> Self {
         Error::Ini(error)
     }
 }

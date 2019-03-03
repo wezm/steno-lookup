@@ -39,8 +39,24 @@ fn main() {
     let opt = Opt::from_args();
     println!("{:?}", opt);
 
+    match run(&opt) {
+        Ok(()) => (),
+        Err(Error::Io(err)) => eprintln!("IO error {}", err),
+        Err(Error::Json(err)) => eprintln!("JSON error {}", err),
+        Err(Error::Ini(err)) => eprintln!("INI error {}", err),
+        Err(Error::FileNotFound(path)) => eprintln!("File not found: {}", path.to_string_lossy()),
+        Err(Error::SectionMissing) => {
+            eprintln!("section '{}' not found in plove config", opt.section)
+        }
+        Err(Error::HomeNotFound) => eprintln!("Unable to dermine home directory"),
+    }
+}
+
+fn run(opt: &Opt) -> Result<(), Error> {
     // Build the list of dictionaries to load
-    dbg!(&dictionary_list(&opt).expect("dict error"));
+    let dictionary_paths = dictionary_list(&opt)?;
+
+    Ok(())
 }
 
 fn dictionary_list(opt: &Opt) -> Result<Vec<PathBuf>, Error> {
@@ -48,9 +64,9 @@ fn dictionary_list(opt: &Opt) -> Result<Vec<PathBuf>, Error> {
 
     // Add dictionaries from plover config unless --noconfig was passed
     if !opt.noconfig {
-        let plover_config_path = opt
-            .plover_config_path()
-            .ok_or_else(|| Error::ConfigNotFound)?;
+        let plover_config_path = opt.plover_config_path()?;
+
+        // TODO: Handle file not found here and turn it into Error::ConfigNotFound
         let plover_dicts =
             steno_lookup::plover_config::dictionaries(plover_config_path, &opt.section)?;
 
@@ -71,12 +87,15 @@ fn dictionary_list(opt: &Opt) -> Result<Vec<PathBuf>, Error> {
 }
 
 impl Opt {
-    fn plover_config_path(&self) -> Option<PathBuf> {
-        self.config.clone().or_else(|| {
-            // https://git.io/fhAAL
-            ProjectDirs::from("org", "plover", "plover")
-                .map(|proj_dirs| proj_dirs.data_local_dir().to_path_buf())
-        })
+    fn plover_config_path(&self) -> Result<PathBuf, Error> {
+        self.config
+            .clone()
+            .or_else(|| {
+                // https://git.io/fhAAL
+                ProjectDirs::from("org", "plover", "plover")
+                    .map(|proj_dirs| proj_dirs.data_local_dir().to_path_buf())
+            })
+            .ok_or_else(|| Error::HomeNotFound)
     }
 }
 
