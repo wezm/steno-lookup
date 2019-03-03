@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use directories::{ProjectDirs, UserDirs};
 use structopt::StructOpt;
+use rayon::prelude::*;
 
 use steno_lookup::{Dictionary, Error};
 
@@ -70,7 +71,7 @@ fn run(opt: &Opt) -> Result<(), Error> {
 
     // Need to load each of the dicts
     let dictionaries = dictionary_paths
-        .iter()
+        .par_iter()
         .inspect(|path| eprintln!("Loading {}", path.to_string_lossy()))
         .map(|path| Dictionary::load(path))
         .collect::<Result<Vec<_>, Error>>();
